@@ -1,0 +1,8 @@
+Images/
+Real_Time_Drowsiness_Detection_System.pdf    
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+ 

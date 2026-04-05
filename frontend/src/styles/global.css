@@ -1,0 +1,225 @@
+/* ========== GLOBAL STYLES ========== */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #151528;
+  --bg-card: rgba(21, 21, 40, 0.7);
+  --accent-cyan: #00e5ff;
+  --accent-cyan-dim: rgba(0, 229, 255, 0.15);
+  --accent-purple: #7b2ff7;
+  --accent-magenta: #e81cff;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0b8;
+  --text-muted: #6a6a80;
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glow-cyan: 0 0 20px rgba(0, 229, 255, 0.3);
+  --glow-purple: 0 0 20px rgba(123, 47, 247, 0.3);
+  --sidebar-width: 260px;
+  --transition-speed: 0.3s;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+ul {
+  list-style: none;
+}
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-cyan-dim);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cyan);
+}
+
+/* ========== PAGE TRANSITIONS ========== */
+.page-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.page-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* ========== PARTICLE BACKGROUND ========== */
+.particles-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: var(--accent-cyan);
+  border-radius: 50%;
+  opacity: 0;
+  animation: floatParticle linear infinite;
+}
+
+.particle:nth-child(1) { left: 10%; animation-duration: 12s; animation-delay: 0s; }
+.particle:nth-child(2) { left: 20%; animation-duration: 15s; animation-delay: 2s; }
+.particle:nth-child(3) { left: 30%; animation-duration: 10s; animation-delay: 4s; }
+.particle:nth-child(4) { left: 40%; animation-duration: 18s; animation-delay: 1s; }
+.particle:nth-child(5) { left: 50%; animation-duration: 14s; animation-delay: 3s; }
+.particle:nth-child(6) { left: 60%; animation-duration: 11s; animation-delay: 5s; }
+.particle:nth-child(7) { left: 70%; animation-duration: 16s; animation-delay: 0.5s; }
+.particle:nth-child(8) { left: 80%; animation-duration: 13s; animation-delay: 2.5s; }
+.particle:nth-child(9) { left: 90%; animation-duration: 17s; animation-delay: 4.5s; }
+.particle:nth-child(10) { left: 15%; animation-duration: 19s; animation-delay: 1.5s; }
+.particle:nth-child(11) { left: 25%; animation-duration: 12s; animation-delay: 3.5s; }
+.particle:nth-child(12) { left: 35%; animation-duration: 14s; animation-delay: 0.8s; }
+.particle:nth-child(13) { left: 45%; animation-duration: 16s; animation-delay: 2.8s; }
+.particle:nth-child(14) { left: 55%; animation-duration: 11s; animation-delay: 4.2s; }
+.particle:nth-child(15) { left: 65%; animation-duration: 18s; animation-delay: 1.2s; }
+.particle:nth-child(16) { left: 75%; animation-duration: 13s; animation-delay: 3.2s; }
+.particle:nth-child(17) { left: 85%; animation-duration: 15s; animation-delay: 5.2s; }
+.particle:nth-child(18) { left: 95%; animation-duration: 10s; animation-delay: 0.3s; }
+.particle:nth-child(19) { left: 5%; animation-duration: 17s; animation-delay: 2.3s; }
+.particle:nth-child(20) { left: 48%; animation-duration: 20s; animation-delay: 4.8s; }
+
+@keyframes floatParticle {
+  0% {
+    transform: translateY(100vh) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-10vh) scale(1);
+    opacity: 0;
+  }
+}
+
+/* ========== LAYOUT ========== */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.page-wrapper {
+  padding: 30px 40px;
+  min-height: 100vh;
+  animation: fadeSlideIn 0.5s ease forwards;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-header {
+  margin-bottom: 35px;
+}
+
+.page-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffffff 0%, var(--accent-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+.page-header p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 300;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+  }
+
+  .page-wrapper {
+    padding: 20px 15px;
+  }
+
+  :root {
+    --sidebar-width: 0px;
+  }
+}

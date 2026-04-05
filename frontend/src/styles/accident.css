@@ -1,0 +1,552 @@
+/* ===== Accident Prediction Page ===== */
+
+.accident-page {
+  max-width: 920px;
+}
+
+/* ── Warning Banner ── */
+.accident-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(231, 76, 60, 0.12);
+  border: 1px solid rgba(231, 76, 60, 0.25);
+  border-radius: 14px;
+  padding: 13px 22px;
+  margin-bottom: 28px;
+  animation: accFadeDown 0.7s ease-out 0.4s both;
+}
+
+.accident-warning .warning-icon {
+  font-size: 1.4rem;
+  animation: accShake 2s ease-in-out infinite;
+}
+
+.accident-warning span {
+  font-size: 0.9rem;
+  color: #e74c3c;
+  font-weight: 500;
+}
+
+/* ── Decorative Orb Widget ── */
+.accident-orb-shell {
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 4px 0 26px;
+}
+
+.accident-orb-glow {
+  position: absolute;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 255, 255, 0.22), rgba(0, 255, 255, 0.02) 70%);
+  filter: blur(8px);
+}
+
+.accident-orb .svg-frame {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  transform-style: preserve-3d;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.accident-orb .svg-frame svg {
+  position: absolute;
+  transition: 0.5s;
+  z-index: calc(1 - (0.2 * var(--j)));
+  transform-origin: center;
+  width: 344px;
+  height: 344px;
+  fill: none;
+}
+
+.accident-orb .svg-frame:hover svg {
+  transform: rotate(-80deg) skew(30deg) translateX(calc(45px * var(--i))) translateY(calc(-35px * var(--i)));
+}
+
+.accident-orb .svg-frame svg #acc-center {
+  transition: 0.5s;
+  transform-origin: center;
+}
+
+.accident-orb .svg-frame:hover svg #acc-center {
+  transform: rotate(-30deg) translateX(45px) translateY(-3px);
+}
+
+.accident-orb .svg-frame svg #acc-out2 {
+  animation: accOrbitRotate 7s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+.accident-orb .svg-frame svg #acc-out3 {
+  animation: accOrbitRotate 3s ease-in-out infinite alternate;
+  transform-origin: center;
+  stroke: #ff0;
+}
+
+.accident-orb .svg-frame svg #acc-inner3,
+.accident-orb .svg-frame svg #acc-inner1 {
+  animation: accOrbitRotate 4s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+.accident-orb .svg-frame svg #acc-center1 {
+  fill: #ff0;
+  animation: accOrbitRotate 2s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+@keyframes accOrbitRotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes accShake {
+  0%, 100% { transform: rotate(0); }
+  10%      { transform: rotate(-10deg); }
+  20%      { transform: rotate(10deg); }
+  30%      { transform: rotate(-10deg); }
+  40%      { transform: rotate(10deg); }
+  50%      { transform: rotate(0); }
+}
+
+@keyframes accFadeDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Form Card ── */
+.accident-form {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 32px;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+  animation: accCardUp 0.8s ease-out 0.3s both;
+}
+
+@keyframes accCardUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Sections ── */
+.accident-form .form-section {
+  margin-bottom: 28px;
+}
+
+.accident-form .section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #f39c12;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(243, 156, 18, 0.18);
+}
+
+.accident-form .section-icon {
+  font-size: 1.2rem;
+}
+
+/* ── Grid ── */
+.accident-form .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ── Form Group ── */
+.accident-form .form-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(236, 240, 241, 0.7);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.accident-form .label-icon {
+  font-size: 1rem;
+}
+
+.accident-form input,
+.accident-form select {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #ecf0f1;
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.accident-form select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23bdc3c7' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+.accident-form select option {
+  background: #1a1a2e;
+  color: #ecf0f1;
+}
+
+.accident-form input:focus,
+.accident-form select:focus {
+  border-color: #f39c12;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.12), 0 4px 12px rgba(243, 156, 18, 0.08);
+  transform: translateY(-2px);
+}
+
+.accident-form input:hover,
+.accident-form select:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.accident-form input::placeholder {
+  color: rgba(189, 195, 199, 0.45);
+}
+
+/* ── Submit ── */
+.accident-form .btn-container {
+  text-align: center;
+  margin-top: 28px;
+}
+
+.accident-form .btn-predict {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 48px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-family: inherit;
+  color: #fff;
+  background: linear-gradient(135deg, #e74c3c, #f39c12);
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 24px rgba(231, 76, 60, 0.32);
+}
+
+.accident-form .btn-predict:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.accident-form .btn-predict::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: accShine 3s ease-in-out infinite;
+}
+
+@keyframes accShine {
+  0%  { left: -100%; }
+  50% { left: 100%; }
+  100%{ left: 100%; }
+}
+
+.accident-form .btn-predict:hover:not(:disabled) {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 32px rgba(231, 76, 60, 0.45);
+}
+
+.accident-form .btn-icon {
+  font-size: 1.2rem;
+}
+
+/* ── Error ── */
+.accident-error {
+  text-align: center;
+  margin-top: 18px;
+  padding: 12px 20px;
+  background: rgba(231, 76, 60, 0.12);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  border-radius: 12px;
+  color: #e74c3c;
+  font-weight: 500;
+  animation: accFadeDown 0.5s ease-out;
+}
+
+/* ══════════════════════════════════════════════
+   RESULT SECTION
+   ══════════════════════════════════════════════ */
+
+.accident-result {
+  text-align: center;
+  animation: accCardUp 0.6s ease-out;
+}
+
+/* Crash scene */
+.result-crash-scene {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 2.4rem;
+  margin-bottom: 12px;
+}
+
+.result-crash-scene .crash-car-l {
+  animation: accCrashL 3.5s ease-in-out infinite;
+}
+.result-crash-scene .crash-car-r {
+  animation: accCrashR 3.5s ease-in-out infinite;
+  display: inline-block;
+  transform: scaleX(-1);
+}
+.result-crash-scene .crash-spark {
+  opacity: 0;
+  animation: accSpark 3.5s ease-in-out infinite;
+}
+
+@keyframes accCrashL {
+  0%   { transform: translateX(-30px); }
+  40%  { transform: translateX(2px); }
+  55%  { transform: translateX(-4px); }
+  100% { transform: translateX(-30px); }
+}
+
+@keyframes accCrashR {
+  0%   { transform: scaleX(-1) translateX(-30px); }
+  40%  { transform: scaleX(-1) translateX(2px); }
+  55%  { transform: scaleX(-1) translateX(-4px); }
+  100% { transform: scaleX(-1) translateX(-30px); }
+}
+
+@keyframes accSpark {
+  0%   { opacity: 0; transform: scale(0.5); }
+  38%  { opacity: 0; }
+  42%  { opacity: 1; transform: scale(1.2); }
+  50%  { opacity: 1; transform: scale(1); }
+  58%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+.accident-result h2 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #e74c3c, #f39c12);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 18px;
+}
+
+/* Severity Badge */
+.severity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 28px;
+  border-radius: 50px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  animation: accBadgePop 0.7s cubic-bezier(0.68, -0.55, 0.27, 1.55) 0.3s both;
+}
+
+.severity-badge.slight {
+  background: rgba(46, 204, 113, 0.15);
+  border: 2px solid rgba(46, 204, 113, 0.45);
+  color: #2ecc71;
+}
+
+.severity-badge.serious {
+  background: rgba(230, 126, 34, 0.15);
+  border: 2px solid rgba(230, 126, 34, 0.45);
+  color: #e67e22;
+}
+
+.severity-badge.fatal {
+  background: rgba(231, 76, 60, 0.15);
+  border: 2px solid rgba(231, 76, 60, 0.45);
+  color: #e74c3c;
+  animation: accBadgePop 0.7s cubic-bezier(0.68, -0.55, 0.27, 1.55) 0.3s both,
+             accDanger 2s ease-in-out infinite 1s;
+}
+
+@keyframes accBadgePop {
+  0%   { opacity: 0; transform: scale(0.3); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes accDanger {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.35); }
+  50%      { box-shadow: 0 0 28px 8px rgba(231, 76, 60, 0.12); }
+}
+
+/* Result details */
+.result-details {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 26px;
+  margin-top: 24px;
+  backdrop-filter: blur(14px);
+  text-align: left;
+}
+
+.result-details h3 {
+  font-size: 1.1rem;
+  color: #f39c12;
+  margin-bottom: 16px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: all 0.3s ease;
+}
+
+.detail-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(243, 156, 18, 0.25);
+  transform: translateY(-2px);
+}
+
+.detail-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #f39c12;
+}
+
+.detail-value {
+  font-size: 0.92rem;
+  color: #ecf0f1;
+  font-weight: 500;
+}
+
+/* Timestamp */
+.result-timestamp {
+  margin-top: 18px;
+  font-size: 0.8rem;
+  color: rgba(189, 195, 199, 0.7);
+}
+
+/* Back button */
+.btn-another {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 28px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: #ecf0f1;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50px;
+  cursor: pointer;
+  margin-top: 22px;
+  transition: all 0.3s ease;
+}
+
+.btn-another:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: #f39c12;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .accident-orb-shell {
+    min-height: 190px;
+    margin-bottom: 22px;
+  }
+
+  .accident-orb .svg-frame {
+    width: 250px;
+    height: 250px;
+  }
+
+  .accident-orb .svg-frame svg {
+    width: 284px;
+    height: 284px;
+  }
+
+  .accident-form .form-grid,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .accident-form {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .accident-orb-shell {
+    min-height: 160px;
+  }
+
+  .accident-orb .svg-frame {
+    width: 210px;
+    height: 210px;
+  }
+
+  .accident-orb .svg-frame svg {
+    width: 240px;
+    height: 240px;
+  }
+
+  .severity-badge {
+    font-size: 1.05rem;
+    padding: 10px 20px;
+  }
+
+  .accident-form .btn-predict {
+    padding: 13px 32px;
+    font-size: 0.92rem;
+  }
+}

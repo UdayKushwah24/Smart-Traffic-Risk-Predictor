@@ -79,6 +79,16 @@ EYE_AR_THRESH = float(os.getenv("EYE_AR_THRESH", 0.25))
 EYE_AR_CONSEC_FRAMES = int(os.getenv("EYE_AR_CONSEC_FRAMES", 20))
 YAWN_THRESH = float(os.getenv("YAWN_THRESH", 25))
 YAWN_CONSEC_FRAMES = int(os.getenv("YAWN_CONSEC_FRAMES", 8))
+HEAD_POSE_YAW_THRESH = float(os.getenv("HEAD_POSE_YAW_THRESH", 0.10))
+HEAD_POSE_PITCH_THRESH = float(os.getenv("HEAD_POSE_PITCH_THRESH", 0.08))
+HEAD_POSE_ALERT_SECONDS = float(os.getenv("HEAD_POSE_ALERT_SECONDS", 5.0))
+HEAD_POSE_RETURN_RATIO = float(os.getenv("HEAD_POSE_RETURN_RATIO", 0.7))
+YAWN_OPEN_RATIO = float(os.getenv("YAWN_OPEN_RATIO", 0.34))
+YAWN_CLOSE_RATIO = float(os.getenv("YAWN_CLOSE_RATIO", 0.29))
+YAWN_MIN_DURATION_SECONDS = float(os.getenv("YAWN_MIN_DURATION_SECONDS", 2.5))
+YAWN_MIN_CONSEC_FRAMES = int(os.getenv("YAWN_MIN_CONSEC_FRAMES", 5))
+BOX_SMOOTH_ALPHA = float(os.getenv("BOX_SMOOTH_ALPHA", 0.35))
+METRIC_SMOOTH_ALPHA = float(os.getenv("METRIC_SMOOTH_ALPHA", 0.35))
 
 # ── Audio Alerts ─────────────────────────────────────────────────────────
 AUDIO_ALERTS_ENABLED = os.getenv("ENABLE_AUDIO_ALERTS", "true").lower() == "true"

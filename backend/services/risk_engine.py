@@ -34,6 +34,9 @@ def calculate_drowsiness_risk(state: dict) -> float:
         return 0.0
     if not state.get("face_detected"):
         return 0.0
+    head_pose = state.get("head_pose") or {}
+    if head_pose.get("alert"):
+        return 78.0
     if state.get("drowsy"):
         return 90.0
     if state.get("yawning"):
@@ -158,6 +161,10 @@ def compute_unified_risk(
             "drowsy": drowsiness_state.get("drowsy", False) if d_active else False,
             "yawning": drowsiness_state.get("yawning", False) if d_active else False,
             "ear": drowsiness_state.get("ear", 0) if d_active else None,
+            "head_pose": drowsiness_state.get("head_pose", {}) if d_active else {},
+            "mouth": drowsiness_state.get("mouth", {}) if d_active else {},
+            "boxes": drowsiness_state.get("boxes", {}) if d_active else {},
+            "alert_message": drowsiness_state.get("alert_message") if d_active else None,
         },
         "fog": {
             "active": f_active,

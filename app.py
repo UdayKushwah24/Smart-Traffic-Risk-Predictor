@@ -182,4 +182,4 @@ if _dist_dir.is_dir():
 # ── Run ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host=HOST, port=PORT, reload=False)
+    uvicorn.run(app, host=HOST, port=PORT, reload=False)

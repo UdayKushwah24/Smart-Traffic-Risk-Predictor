@@ -176,6 +176,26 @@ export default function LiveRisk() {
                     </strong>
                   </div>
                   <div className="module-metric">
+                    <span>Head Direction</span>
+                    <strong>
+                      {(riskData.drowsiness?.head_pose?.direction || 'forward').toUpperCase()}
+                    </strong>
+                  </div>
+                  <div className="module-metric">
+                    <span>Off-Road Time</span>
+                    <strong className={riskData.drowsiness?.head_pose?.alert ? 'alert' : ''}>
+                      {riskData.drowsiness?.head_pose?.seconds != null
+                        ? `${riskData.drowsiness.head_pose.seconds}s`
+                        : '0.0s'}
+                    </strong>
+                  </div>
+                  <div className="module-metric">
+                    <span>Focus Alert</span>
+                    <strong className={riskData.drowsiness?.head_pose?.alert ? 'alert' : ''}>
+                      {riskData.drowsiness?.alert_message || '✓ Clear'}
+                    </strong>
+                  </div>
+                  <div className="module-metric">
                     <span>Risk</span>
                     <strong>{riskData.drowsiness?.risk_score ?? 0}%</strong>
                   </div>

@@ -28,6 +28,12 @@ _ALERT_CANDIDATES: Dict[str, List[Path]] = {
         _PROJECT_ROOT / "Drowsiness_and_Yawning_Detection" / "alert.wav",
         _PROJECT_ROOT / "Drowsiness_and_Yawning_Detection" / "Alert.wav",
     ],
+    "focus": [
+        _PROJECT_ROOT / "alert.wav",
+        _PROJECT_ROOT / "Alert.wav",
+        _PROJECT_ROOT / "Drowsiness_and_Yawning_Detection" / "alert.wav",
+        _PROJECT_ROOT / "Drowsiness_and_Yawning_Detection" / "Alert.wav",
+    ],
     "yawning": [
         _PROJECT_ROOT / "alert2.wav",
         _PROJECT_ROOT / "Alert2.wav",

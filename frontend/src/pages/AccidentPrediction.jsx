@@ -1,4 +1,5 @@
 import { useState } from 'react';
+const API_URL = import.meta.env.VITE_API_URL;
 import '../styles/accident.css';
 import AccidentOrbWidget from '../components/AccidentOrbWidget';
 
@@ -67,7 +68,7 @@ export default function AccidentPrediction() {
         Casualty_Age: parseInt(form.Casualty_Age, 10),
       };
 
-      const resp = await fetch('/api/accident/predict', {
+      const resp = await fetch(`${API_URL}/api/accident/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

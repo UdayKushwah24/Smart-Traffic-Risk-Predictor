@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+const API_URL = import.meta.env.VITE_API_URL;
 import '../styles/dashboard.css';
 
 const cards = [
@@ -33,10 +34,16 @@ const cards = [
     color: '142, 242, 252',
   },
   {
-    title: 'Child Presence Safety',
-    icon: '👶',
-    desc: 'Engine-off motion alerting to prevent in-vehicle child hazards',
+    title: 'Motion Detection',
+    icon: '📡',
+    desc: 'Motion engine status and in-vehicle motion alerting',
     color: '252, 142, 214',
+  },
+  {
+    title: 'Kid Safety Detection',
+    icon: '👶',
+    desc: 'AI face age-detection to ensure child is supervised in the vehicle',
+    color: '255, 200, 100',
   },
   {
     title: 'Road Classification',
@@ -64,7 +71,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const resp = await fetch('/api/status');
+        const resp = await fetch(`${API_URL}/api/status`);
         const data = await resp.json();
         setStatus(data);
       } catch {
@@ -81,19 +88,21 @@ export default function Dashboard() {
   const fogActive = status?.modules?.fog?.active ?? false;
   const stressActive = status?.modules?.stress?.active ?? false;
   const visibilityActive = status?.modules?.visibility?.active ?? false;
-  const childActive = status?.modules?.child_presence?.active ?? false;
+  const motionActive = status?.modules?.motion_detection?.active ?? false;
+  const kidSafetyActive = status?.modules?.kid_safety?.active ?? false;
   const uptime = status?.uptime ?? 0;
   const activeModules =
     (drowsinessActive ? 1 : 0)
     + (fogActive ? 1 : 0)
     + (stressActive ? 1 : 0)
     + (visibilityActive ? 1 : 0)
-    + (childActive ? 1 : 0);
+    + (motionActive ? 1 : 0)
+    + (kidSafetyActive ? 1 : 0);
 
   const stats = [
     {
       label: 'Active Modules',
-      value: status ? `${activeModules} / 5` : '—',
+      value: status ? `${activeModules} / 7` : '—',
       change: systemOnline ? 'System online' : 'Offline',
       positive: systemOnline,
     },

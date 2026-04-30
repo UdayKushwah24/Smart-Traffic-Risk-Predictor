@@ -17,12 +17,14 @@ import io
 import time
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageStat, ImageFilter
     import torch
     import timm
     from torchvision import transforms
 except Exception:
     Image = None
+    ImageStat = None
+    ImageFilter = None
     torch = None
     timm = None
     transforms = None
@@ -79,6 +81,74 @@ def _severity_from_probability(fog_probability: float) -> str:
     return "low"
 
 
+def _fallback_visibility_from_image(image_bytes: bytes) -> dict:
+    """Estimate fog/clear conditions from basic image statistics when the model is unavailable."""
+    if Image is None or ImageStat is None:
+        return {
+            "active": False,
+            "error": "PIL unavailable",
+        }
+
+    try:
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        resized = image.resize((224, 224))
+        stat = ImageStat.Stat(resized)
+        brightness = sum(stat.mean) / (3.0 * 255.0)
+        contrast = sum(stat.stddev) / (3.0 * 255.0)
+
+        # saturation from HSV — fog tends to desaturate backgrounds
+        hsv = resized.convert("HSV")
+        hsv_stat = ImageStat.Stat(hsv)
+        saturation_mean = hsv_stat.mean[1] / 255.0
+
+        # edge density proxy: fewer edges when foggy
+        edges = resized.convert("L").filter(ImageFilter.FIND_EDGES)
+        edges_stat = ImageStat.Stat(edges)
+        edge_mean = edges_stat.mean[0] / 255.0
+
+        # blur proxy (variance on grayscale)
+        grayscale = resized.convert("L")
+        blur_stat = ImageStat.Stat(grayscale)
+        blur_proxy = blur_stat.var[0] / (255.0 * 255.0)
+
+        # Heuristic scoring — tuned to be more sensitive to desaturation and low edge density
+        fog_score = 0.0
+        if saturation_mean < 0.28:
+            fog_score += 0.50
+        if contrast < 0.14:
+            fog_score += 0.20
+        if edge_mean < 0.06:
+            fog_score += 0.20
+        if blur_proxy < 0.01:
+            fog_score += 0.10
+
+        # Log diagnostic values to help tuning
+        logger.debug(
+            "Fog fallback stats - brightness=%.3f contrast=%.3f sat=%.3f edges=%.3f blur=%.6f",
+            brightness,
+            contrast,
+            saturation_mean,
+            edge_mean,
+            blur_proxy,
+        )
+
+        fog_score = min(0.98, fog_score)
+        label = "Fog/Smog" if fog_score >= 0.5 else "Clear"
+        confidence = 0.60 + abs(fog_score - 0.5) * 0.8
+        confidence = min(0.99, max(0.55, confidence))
+
+        return {
+            "active": True,
+            "prediction": label,
+            "confidence": round(confidence * 100, 2),
+            "fog_probability": round(fog_score, 4),
+            "fallback": True,
+        }
+    except Exception as exc:
+        logger.error(f"Fog fallback prediction error: {exc}")
+        return {"active": False, "error": str(exc)}
+
+
 def predict(image_bytes: bytes, user_id: str = "system", image_name: str = "camera_frame.jpg") -> dict:
     """
     Run fog/visibility prediction on raw image bytes.
@@ -87,7 +157,7 @@ def predict(image_bytes: bytes, user_id: str = "system", image_name: str = "came
     global _last_state
 
     if _model is None:
-        _last_state = {"active": False, "error": "Model not loaded"}
+        _last_state = _fallback_visibility_from_image(image_bytes)
         return _last_state
 
     try:

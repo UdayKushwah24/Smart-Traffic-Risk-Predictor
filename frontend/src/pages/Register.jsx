@@ -1,4 +1,5 @@
 import { useState } from 'react';
+const API_URL = import.meta.env.VITE_API_URL;
 import { useNavigate } from 'react-router-dom';
 import ParticlesBg from '../components/ParticlesBg';
 import '../styles/global.css';
@@ -22,7 +23,7 @@ export default function Register({ onLogin }) {
 
     setLoading(true);
     try {
-      const resp = await fetch('/auth/register', {
+      const resp = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -36,7 +37,7 @@ export default function Register({ onLogin }) {
       }
 
       // Auto-login after registration
-      const loginResp = await fetch('/auth/login', {
+      const loginResp = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: form.email, password: form.password }),

@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from backend.database.mongo import get_alerts, get_drowsiness_events
 from backend.services.auth_service import get_current_user
-from backend.services import drowsiness_service, fog_service, stress_service, visibility_service
+from backend.services import drowsiness_service, fog_service, stress_service, visibility_service, kid_safety_service
 from backend.services import accident_service
 from backend.services.analytics_service import generate_summary
 from backend.services.risk_engine import compute_unified_risk
@@ -30,7 +30,8 @@ def get_status():
         f_state = fog_service.get_state()
         s_state = stress_service.get_state()
         v_state = visibility_service.get_state()
-        risk = compute_unified_risk(d_state, f_state, s_state, v_state)
+        k_state = kid_safety_service.get_state()
+        risk = compute_unified_risk(d_state, f_state, s_state, v_state, k_state)
         return {
             "service": "driver-safety-system",
             "status": "online",
@@ -42,9 +43,13 @@ def get_status():
                 "fog": {"active": f_state.get("active", False)},
                 "stress": {"active": s_state.get("active", False)},
                 "visibility": {"active": v_state.get("active", False)},
-                "child_presence": {
+                "motion_detection": {
                     "active": v_state.get("active", False),
                     "engine_on": v_state.get("child_presence", {}).get("engine_on", True),
+                },
+                "kid_safety": {
+                    "active": k_state.get("active", False),
+                    "status": k_state.get("status", "NO_FACE"),
                 },
             },
             "risk_score": risk.get("overall_score", 0),
@@ -63,7 +68,8 @@ def get_risk():
         f_state = fog_service.get_state()
         s_state = stress_service.get_state()
         v_state = visibility_service.get_state()
-        result = compute_unified_risk(d_state, f_state, s_state, v_state)
+        k_state = kid_safety_service.get_state()
+        result = compute_unified_risk(d_state, f_state, s_state, v_state, k_state)
         result["timestamp"] = time.time()
         return result
     except Exception as e:
@@ -147,23 +153,41 @@ async def predict_visibility_from_camera(user: dict = Depends(get_current_user))
         return {"error": str(e)}
 
 
-@router.get("/child-presence")
-def get_child_presence_state(user: dict = Depends(get_current_user)):
-    """Current child presence detector state."""
+@router.get("/motion-detection")
+def get_motion_detection_state(user: dict = Depends(get_current_user)):
+    """Current motion detection state."""
     try:
         return visibility_service.get_state().get("child_presence", {})
     except Exception as e:
-        logger.error(f"Child presence endpoint error: {e}")
+        logger.error(f"Motion detection endpoint error: {e}")
         return {"error": str(e)}
 
 
-@router.post("/child-presence/engine")
-def set_child_engine(on: bool, user: dict = Depends(get_current_user)):
-    """Toggle engine state for child-presence logic."""
+def read_kid_safety_state(user_id: str = "system") -> dict:
+    """Read or refresh kid-safety state from the latest camera frame."""
+    frame = drowsiness_service.get_frame()
+    if frame is None:
+        return kid_safety_service.get_state()
+    return kid_safety_service.predict(frame, user_id=user_id, image_name="camera_frame.jpg")
+
+
+@router.get("/kid-safety")
+def get_kid_safety_state(user: dict = Depends(get_current_user)):
+    """Current kid safety detection state."""
+    try:
+        return read_kid_safety_state(user_id=user["id"])
+    except Exception as e:
+        logger.error(f"Kid safety endpoint error: {e}")
+        return {"error": str(e)}
+
+
+@router.post("/motion-detection/engine")
+def set_motion_engine(on: bool, user: dict = Depends(get_current_user)):
+    """Toggle engine state for motion detection logic."""
     try:
         return visibility_service.set_engine(on)
     except Exception as e:
-        logger.error(f"Child presence engine toggle error: {e}")
+        logger.error(f"Motion detection engine toggle error: {e}")
         return {"error": str(e)}
 
 

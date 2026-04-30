@@ -264,7 +264,16 @@ def _update_yawn_state(
     if mouth_ratio is None:
         return None, 0, 0.0, False, False
 
-    if mouth_ratio >= _stable_yawn_threshold():
+    open_threshold = _stable_yawn_threshold()
+    # Use a lower hold threshold once yawning starts so brief ratio jitter
+    # does not reset the event before minimum duration/frames are reached.
+    hold_threshold = min(open_threshold, YAWN_CLOSE_RATIO)
+
+    should_count = mouth_ratio >= open_threshold
+    if previous_started_at is not None and mouth_ratio >= hold_threshold:
+        should_count = True
+
+    if should_count:
         started_at = previous_started_at if previous_started_at is not None else now
         frames = previous_frames + 1
         seconds = now - started_at
@@ -561,13 +570,13 @@ def _opencv_yawn_ratio(mouth_roi_gray: np.ndarray) -> float:
 
     # Yawns form a tall central opening. Wide but thin mouth contours
     # from neutral expressions or smiles should not trigger alerts.
-    if area_ratio < 0.03:
+    if area_ratio < 0.02:
         return 0.0
-    if height_ratio < 0.18:
+    if height_ratio < 0.14:
         return 0.0
-    if openness < 0.30:
+    if openness < 0.25:
         return 0.0
-    if not (0.22 <= width_ratio <= 0.72):
+    if not (0.18 <= width_ratio <= 0.80):
         return 0.0
 
     return min(
@@ -613,12 +622,27 @@ def _handle_alert_transitions(
 
 
 def _open_camera(cv2_module):
-    cap = cv2_module.VideoCapture(0)
-    if cap.isOpened():
-        return cap
+    candidate_backends = []
+    for backend_name in ("CAP_AVFOUNDATION", "CAP_DSHOW", "CAP_MSMF", "CAP_ANY"):
+        backend = getattr(cv2_module, backend_name, None)
+        if isinstance(backend, int) and backend not in candidate_backends:
+            candidate_backends.append(backend)
 
-    logger.error("Cannot open webcam — drowsiness detection disabled")
-    cap.release()
+    for camera_index in (0, 1, 2, 3):
+        for backend in candidate_backends:
+            cap = cv2_module.VideoCapture(camera_index, backend)
+            if cap.isOpened():
+                logger.info("Opened webcam index %s using backend %s", camera_index, backend)
+                return cap
+            cap.release()
+
+        cap = cv2_module.VideoCapture(camera_index)
+        if cap.isOpened():
+            logger.info("Opened webcam index %s using default backend", camera_index)
+            return cap
+        cap.release()
+
+    logger.error("Cannot open any webcam index 0-3 — drowsiness detection disabled")
     return None
 
 

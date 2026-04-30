@@ -16,7 +16,8 @@ function EmailStep({ onNext }) {
     setLoading(true);
 
     try {
-      const resp = await fetch('/auth/forgot-password', {
+      const API_URL = import.meta.env.VITE_API_URL;
+      const resp = await fetch(`${API_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -109,7 +110,8 @@ function OTPStep({ email, devOtp, onNext }) {
 
     setLoading(true);
     try {
-      const resp = await fetch('/auth/verify-otp', {
+      const API_URL = import.meta.env.VITE_API_URL;
+      const resp = await fetch(`${API_URL}/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp_code }),
@@ -186,7 +188,8 @@ function ResetStep({ email, otpCode }) {
 
     setLoading(true);
     try {
-      const resp = await fetch('/auth/reset-password', {
+      const API_URL = import.meta.env.VITE_API_URL;
+      const resp = await fetch(`${API_URL}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp_code: otpCode, new_password: password }),

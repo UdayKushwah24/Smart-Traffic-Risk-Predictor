@@ -103,8 +103,8 @@ You can override this location with the `EMOTION_ASSETS_DIR` environment variabl
 Start backend:
 
 ```bash
-cd DriverSafetySystem
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+cd DriverSafetySystem/backend
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Start frontend:

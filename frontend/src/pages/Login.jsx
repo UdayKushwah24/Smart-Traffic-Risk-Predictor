@@ -1,4 +1,5 @@
 import { useState } from 'react';
+const API_URL = import.meta.env.VITE_API_URL;
 import { useNavigate } from 'react-router-dom';
 import ParticlesBg from '../components/ParticlesBg';
 import RunnerLoader from '../components/RunnerLoader';
@@ -19,7 +20,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      const resp = await fetch('/auth/login', {
+      const resp = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

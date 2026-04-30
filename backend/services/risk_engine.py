@@ -19,6 +19,7 @@ from backend.config import (
     CHILD_WEIGHT,
     DROWSINESS_WEIGHT,
     FOG_WEIGHT,
+    KID_SAFETY_WEIGHT,
     STRESS_WEIGHT,
     VISIBILITY_WEIGHT,
 )
@@ -82,6 +83,22 @@ def calculate_child_risk(state: dict) -> float:
     return min(100.0, max(0.0, float(child.get("score", 0.0))))
 
 
+def calculate_kid_safety_risk(state: dict) -> float:
+    """Risk score (0-100) from kid safety detection."""
+    if not state or not state.get("active"):
+        return 0.0
+    status = str(state.get("status", "NO_FACE")).upper()
+    if status == "SAFE":
+        return min(10.0, max(0.0, float(state.get("risk", 5.0))))
+    if status == "WARNING":
+        return max(35.0, min(60.0, float(state.get("risk", 40.0))))
+    if status == "DANGER":
+        return max(85.0, min(100.0, float(state.get("risk", 95.0))))
+    if status == "NO_FACE":
+        return 0.0
+    return min(100.0, max(0.0, float(state.get("risk", 0.0))))
+
+
 def get_risk_level(score: float) -> str:
     """Classify numeric risk into named level."""
     if score >= 80:
@@ -98,6 +115,7 @@ def compute_unified_risk(
     fog_state: dict,
     stress_state: Optional[dict] = None,
     visibility_state: Optional[dict] = None,
+    kid_safety_state: Optional[dict] = None,
 ) -> dict:
     """
     Compute the unified Driver Risk Score.
@@ -109,12 +127,14 @@ def compute_unified_risk(
     s_risk = calculate_stress_risk(stress_state or {})
     v_risk = calculate_visibility_risk(visibility_state or {})
     c_risk = calculate_child_risk(visibility_state or {})
+    k_risk = calculate_kid_safety_risk(kid_safety_state or {})
 
     d_active = bool(drowsiness_state and drowsiness_state.get("active"))
     f_active = bool(fog_state and fog_state.get("active"))
     s_active = bool(stress_state and stress_state.get("active"))
     v_active = bool(visibility_state and visibility_state.get("active"))
     c_active = bool(visibility_state and visibility_state.get("active"))
+    k_active = bool(kid_safety_state and kid_safety_state.get("active"))
 
     raw_weights = {
         "drowsiness": DROWSINESS_WEIGHT,
@@ -122,6 +142,7 @@ def compute_unified_risk(
         "stress": STRESS_WEIGHT,
         "visibility": VISIBILITY_WEIGHT,
         "child": CHILD_WEIGHT,
+        "kid_safety": KID_SAFETY_WEIGHT,
     }
     weight_sum = sum(raw_weights.values())
     if weight_sum <= 0:
@@ -146,8 +167,12 @@ def compute_unified_risk(
         active_risks.append(v_risk * weights["visibility"])
     if c_active:
         active_risks.append(c_risk * weights["child"])
+    if k_active:
+        active_risks.append(k_risk * weights["kid_safety"])
 
     unified = sum(active_risks) if active_risks else 0.0
+    if k_active and str((kid_safety_state or {}).get("status", "")).upper() == "DANGER":
+        unified += 15.0
 
     unified = min(100.0, unified)
 
@@ -187,7 +212,7 @@ def compute_unified_risk(
             "contrast": (visibility_state or {}).get("visibility", {}).get("contrast", 0.0),
             "blur_var": (visibility_state or {}).get("visibility", {}).get("blur_var", 0.0),
         },
-        "child_presence": {
+        "motion_detection": {
             "active": c_active,
             "risk_score": round(c_risk, 1),
             "engine_on": (visibility_state or {}).get("child_presence", {}).get("engine_on", True),
@@ -195,5 +220,14 @@ def compute_unified_risk(
             "alert": (visibility_state or {}).get("child_presence", {}).get("alert", False),
             "recent_pct": (visibility_state or {}).get("child_presence", {}).get("recent_pct", 0.0),
         },
-        "active_modules": int(d_active) + int(f_active) + int(s_active) + int(v_active) + int(c_active),
+        "kid_safety": {
+            "active": k_active,
+            "risk_score": round(k_risk, 1),
+            "kid_detected": (kid_safety_state or {}).get("kid_detected", False) if k_active else False,
+            "adult_present": (kid_safety_state or {}).get("adult_present", False) if k_active else False,
+            "status": (kid_safety_state or {}).get("status", "NO_FACE") if k_active else "NO_FACE",
+            "message": (kid_safety_state or {}).get("message", "No occupant detected") if k_active else "No occupant detected",
+            "alone_seconds": (kid_safety_state or {}).get("alone_seconds", 0.0) if k_active else 0.0,
+        },
+        "active_modules": int(d_active) + int(f_active) + int(s_active) + int(v_active) + int(c_active) + int(k_active),
     }

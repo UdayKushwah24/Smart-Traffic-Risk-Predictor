@@ -1,16 +1,40 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import KidSafetyCard from '../components/KidSafetyCard';
 import '../styles/liverisk.css';
 
-/* ── Uses relative path so Vite proxy handles it in dev,
-      and FastAPI serves it directly in production ── */
-const WS_URL = `ws://${window.location.host}/ws/risk`;
+/* ── Build backend API and WS URL from Vite env `VITE_API_URL`. Falls back to origin. ── */
+const API_URL = import.meta.env.VITE_API_URL;
+const WS_URL = `${API_URL.replace(/^http/, 'ws')}/ws/risk`;
 
 export default function LiveRisk() {
   const [isActive, setIsActive] = useState(false);
   const [riskData, setRiskData] = useState(null);
+  const fallbackRiskData = {
+    overall_score: 0,
+    risk_level: 'low',
+    drowsiness: { active: false },
+    fog: { active: false },
+    stress: { active: false },
+    visibility: { active: false },
+    motion_detection: { active: false },
+    active_modules: 0,
+  };
+  const [kidSafetyData, setKidSafetyData] = useState({
+    active: false,
+    kid_detected: false,
+    adult_present: false,
+    status: 'NO_FACE',
+    risk: 0,
+    message: 'No occupant detected',
+    alone_seconds: 0,
+    boxes: [],
+  });
   const [connected, setConnected] = useState(false);
   const wsRef = useRef(null);
   const keepAliveRef = useRef(null);
+  const kidSafetyTimerRef = useRef(null);
+  const audioContextRef = useRef(null);
+  const dangerPlayedRef = useRef(false);
 
   // WebSocket connection management
   useEffect(() => {
@@ -53,6 +77,99 @@ export default function LiveRisk() {
     }
   }, [isActive]);
 
+  useEffect(() => {
+    if (!isActive) {
+      setKidSafetyData({
+        active: false,
+        kid_detected: false,
+        adult_present: false,
+        status: 'NO_FACE',
+        risk: 0,
+        message: 'No occupant detected',
+        alone_seconds: 0,
+        boxes: [],
+      });
+      dangerPlayedRef.current = false;
+      if (kidSafetyTimerRef.current) {
+        clearInterval(kidSafetyTimerRef.current);
+        kidSafetyTimerRef.current = null;
+      }
+      return undefined;
+    }
+
+    const fetchKidSafety = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const resp = await fetch(`${API_URL}/kid-safety`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = await resp.json();
+        if (resp.ok && !data.error) {
+          setKidSafetyData(data);
+        }
+      } catch {
+        // Keep the last good state to avoid UI jitter.
+      }
+    };
+
+    fetchKidSafety();
+    kidSafetyTimerRef.current = setInterval(fetchKidSafety, 1500);
+
+    return () => {
+      if (kidSafetyTimerRef.current) {
+        clearInterval(kidSafetyTimerRef.current);
+        kidSafetyTimerRef.current = null;
+      }
+    };
+  }, [isActive]);
+
+  useEffect(() => {
+    if (kidSafetyData.status !== 'DANGER' || dangerPlayedRef.current) {
+      if (kidSafetyData.status !== 'DANGER') {
+        dangerPlayedRef.current = false;
+      }
+      return undefined;
+    }
+
+    dangerPlayedRef.current = true;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return undefined;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+
+      const context = audioContextRef.current;
+      if (context.state === 'suspended') {
+        context.resume().catch(() => {});
+      }
+
+      const playTone = (frequency, startOffset, duration) => {
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.value = frequency;
+        gainNode.gain.setValueAtTime(0.0001, context.currentTime + startOffset);
+        gainNode.gain.exponentialRampToValueAtTime(0.12, context.currentTime + startOffset + 0.03);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + startOffset + duration);
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+        oscillator.start(context.currentTime + startOffset);
+        oscillator.stop(context.currentTime + startOffset + duration);
+      };
+
+      playTone(880, 0, 0.22);
+      playTone(880, 0.28, 0.22);
+      playTone(660, 0.56, 0.32);
+    } catch {
+      // Audio alerts are best-effort.
+    }
+    return undefined;
+  }, [kidSafetyData.status]);
+
+  const activeRiskData = riskData ?? fallbackRiskData;
+
   const getRiskColor = useCallback((level) => {
     switch (level) {
       case 'critical': return '#ff2b2b';
@@ -63,7 +180,7 @@ export default function LiveRisk() {
     }
   }, []);
 
-  const riskColor = riskData ? getRiskColor(riskData.risk_level) : '#666';
+  const riskColor = getRiskColor(activeRiskData.risk_level);
 
   return (
     <div className="page-wrapper liverisk-page">
@@ -136,184 +253,194 @@ export default function LiveRisk() {
         </div>
 
         {/* ── Real-Time Risk Score Display ── */}
-        {isActive && riskData && (
+        {(isActive || !riskData) && (
           <div className="risk-live-section">
             {/* Unified Risk Gauge */}
             <div className="risk-score-gauge" style={{ borderColor: riskColor }}>
               <div className="risk-score-number" style={{ color: riskColor }}>
-                {riskData.overall_score}
+                {activeRiskData.overall_score}
               </div>
               <div className="risk-score-label">Driver Risk Score</div>
               <div className="risk-level-badge" style={{ background: riskColor }}>
-                {riskData.risk_level?.toUpperCase()}
+                {activeRiskData.risk_level?.toUpperCase()}
               </div>
             </div>
+
+            {!isActive && !riskData && (
+              <div className="risk-status-panel active" style={{ maxWidth: '420px' }}>
+                <div className="risk-status-label">Waiting for Stream</div>
+                <div className="risk-status-value active">● CONNECTING…</div>
+              </div>
+            )}
 
             {/* Module Cards */}
             <div className="risk-modules-row">
               {/* Drowsiness Module */}
-              <div className={`risk-module-card ${riskData.drowsiness?.active ? 'online' : 'offline'}`}>
+              <div className={`risk-module-card ${activeRiskData.drowsiness?.active ? 'online' : 'offline'}`}>
                 <div className="module-header">
                   <span className="module-icon">😴</span>
                   <span className="module-title">Drowsiness Detection</span>
-                  <span className={`module-dot ${riskData.drowsiness?.active ? 'on' : 'off'}`}></span>
+                  <span className={`module-dot ${activeRiskData.drowsiness?.active ? 'on' : 'off'}`}></span>
                 </div>
                 <div className="module-body">
                   <div className="module-metric">
                     <span>EAR</span>
-                    <strong>{riskData.drowsiness?.ear?.toFixed(3) ?? '—'}</strong>
+                    <strong>{activeRiskData.drowsiness?.ear?.toFixed(3) ?? '—'}</strong>
                   </div>
                   <div className="module-metric">
                     <span>Drowsy</span>
-                    <strong className={riskData.drowsiness?.drowsy ? 'alert' : ''}>
-                      {riskData.drowsiness?.drowsy ? '⚠ YES' : '✓ No'}
+                    <strong className={activeRiskData.drowsiness?.drowsy ? 'alert' : ''}>
+                      {activeRiskData.drowsiness?.drowsy ? '⚠ YES' : '✓ No'}
                     </strong>
                   </div>
                   <div className="module-metric">
                     <span>Yawning</span>
-                    <strong className={riskData.drowsiness?.yawning ? 'alert' : ''}>
-                      {riskData.drowsiness?.yawning ? '⚠ YES' : '✓ No'}
+                    <strong className={activeRiskData.drowsiness?.yawning ? 'alert' : ''}>
+                      {activeRiskData.drowsiness?.yawning ? '⚠ YES' : '✓ No'}
                     </strong>
                   </div>
                   <div className="module-metric">
                     <span>Head Direction</span>
                     <strong>
-                      {(riskData.drowsiness?.head_pose?.direction || 'forward').toUpperCase()}
+                      {(activeRiskData.drowsiness?.head_pose?.direction || 'forward').toUpperCase()}
                     </strong>
                   </div>
                   <div className="module-metric">
                     <span>Off-Road Time</span>
-                    <strong className={riskData.drowsiness?.head_pose?.alert ? 'alert' : ''}>
-                      {riskData.drowsiness?.head_pose?.seconds != null
-                        ? `${riskData.drowsiness.head_pose.seconds}s`
+                    <strong className={activeRiskData.drowsiness?.head_pose?.alert ? 'alert' : ''}>
+                      {activeRiskData.drowsiness?.head_pose?.seconds != null
+                        ? `${activeRiskData.drowsiness.head_pose.seconds}s`
                         : '0.0s'}
                     </strong>
                   </div>
                   <div className="module-metric">
                     <span>Focus Alert</span>
-                    <strong className={riskData.drowsiness?.head_pose?.alert ? 'alert' : ''}>
-                      {riskData.drowsiness?.alert_message || '✓ Clear'}
+                    <strong className={activeRiskData.drowsiness?.head_pose?.alert ? 'alert' : ''}>
+                      {activeRiskData.drowsiness?.alert_message || '✓ Clear'}
                     </strong>
                   </div>
                   <div className="module-metric">
                     <span>Risk</span>
-                    <strong>{riskData.drowsiness?.risk_score ?? 0}%</strong>
+                    <strong>{activeRiskData.drowsiness?.risk_score ?? 0}%</strong>
                   </div>
                 </div>
               </div>
 
               {/* Fog Module */}
-              <div className={`risk-module-card ${riskData.fog?.active ? 'online' : 'offline'}`}>
+              <div className={`risk-module-card ${activeRiskData.fog?.active ? 'online' : 'offline'}`}>
                 <div className="module-header">
                   <span className="module-icon">🌫</span>
                   <span className="module-title">Fog / Visibility</span>
-                  <span className={`module-dot ${riskData.fog?.active ? 'on' : 'off'}`}></span>
+                  <span className={`module-dot ${activeRiskData.fog?.active ? 'on' : 'off'}`}></span>
                 </div>
                 <div className="module-body">
                   <div className="module-metric">
                     <span>Visibility</span>
-                    <strong>{riskData.fog?.prediction ?? '—'}</strong>
+                    <strong>{activeRiskData.fog?.prediction ?? '—'}</strong>
                   </div>
                   <div className="module-metric">
                     <span>Confidence</span>
                     <strong>
-                      {riskData.fog?.confidence != null
-                        ? `${riskData.fog.confidence}%`
+                      {activeRiskData.fog?.confidence != null
+                        ? `${activeRiskData.fog.confidence}%`
                         : '—'}
                     </strong>
                   </div>
                   <div className="module-metric">
                     <span>Risk</span>
-                    <strong>{riskData.fog?.risk_score ?? 0}%</strong>
+                    <strong>{activeRiskData.fog?.risk_score ?? 0}%</strong>
                   </div>
                 </div>
               </div>
 
               {/* Stress Module */}
-              <div className={`risk-module-card ${riskData.stress?.active ? 'online' : 'offline'}`}>
+              <div className={`risk-module-card ${activeRiskData.stress?.active ? 'online' : 'offline'}`}>
                 <div className="module-header">
                   <span className="module-icon">🎙️</span>
                   <span className="module-title">Stress Detection</span>
-                  <span className={`module-dot ${riskData.stress?.active ? 'on' : 'off'}`}></span>
+                  <span className={`module-dot ${activeRiskData.stress?.active ? 'on' : 'off'}`}></span>
                 </div>
                 <div className="module-body">
                   <div className="module-metric">
                     <span>Level</span>
-                    <strong>{riskData.stress?.level ?? 'Normal'}</strong>
+                    <strong>{activeRiskData.stress?.level ?? 'Normal'}</strong>
                   </div>
                   <div className="module-metric">
                     <span>Confidence</span>
                     <strong>
-                      {riskData.stress?.confidence != null
-                        ? `${Math.round(riskData.stress.confidence * 100)}%`
+                      {activeRiskData.stress?.confidence != null
+                        ? `${Math.round(activeRiskData.stress.confidence * 100)}%`
                         : '—'}
                     </strong>
                   </div>
                   <div className="module-metric">
                     <span>Source</span>
-                    <strong>{riskData.stress?.source ?? 'idle'}</strong>
+                    <strong>{activeRiskData.stress?.source ?? 'idle'}</strong>
                   </div>
                   <div className="module-metric">
                     <span>Risk</span>
-                    <strong>{riskData.stress?.risk_score ?? 0}%</strong>
+                    <strong>{activeRiskData.stress?.risk_score ?? 0}%</strong>
                   </div>
                 </div>
               </div>
 
               {/* Visibility Module */}
-              <div className={`risk-module-card ${riskData.visibility?.active ? 'online' : 'offline'}`}>
+              <div className={`risk-module-card ${activeRiskData.visibility?.active ? 'online' : 'offline'}`}>
                 <div className="module-header">
                   <span className="module-icon">🌤️</span>
                   <span className="module-title">Visibility Analysis</span>
-                  <span className={`module-dot ${riskData.visibility?.active ? 'on' : 'off'}`}></span>
+                  <span className={`module-dot ${activeRiskData.visibility?.active ? 'on' : 'off'}`}></span>
                 </div>
                 <div className="module-body">
                   <div className="module-metric">
                     <span>Condition</span>
-                    <strong>{riskData.visibility?.condition ?? 'Unknown'}</strong>
+                    <strong>{activeRiskData.visibility?.condition ?? 'Unknown'}</strong>
                   </div>
                   <div className="module-metric">
                     <span>Brightness</span>
-                    <strong>{riskData.visibility?.brightness ?? 0}</strong>
+                    <strong>{activeRiskData.visibility?.brightness ?? 0}</strong>
                   </div>
                   <div className="module-metric">
                     <span>Blur Var</span>
-                    <strong>{riskData.visibility?.blur_var ?? 0}</strong>
+                    <strong>{activeRiskData.visibility?.blur_var ?? 0}</strong>
                   </div>
                   <div className="module-metric">
                     <span>Risk</span>
-                    <strong>{riskData.visibility?.risk_score ?? 0}%</strong>
+                    <strong>{activeRiskData.visibility?.risk_score ?? 0}%</strong>
                   </div>
                 </div>
               </div>
 
-              {/* Child Presence Module */}
-              <div className={`risk-module-card ${riskData.child_presence?.active ? 'online' : 'offline'}`}>
+              {/* Kid Safety Module */}
+              <KidSafetyCard data={kidSafetyData} debug={import.meta.env.VITE_KID_SAFETY_DEBUG === 'true'} />
+
+              {/* Motion Detection Module */}
+              <div className={`risk-module-card ${activeRiskData.motion_detection?.active ? 'online' : 'offline'}`}>
                 <div className="module-header">
-                  <span className="module-icon">👶</span>
-                  <span className="module-title">Child Presence</span>
-                  <span className={`module-dot ${riskData.child_presence?.active ? 'on' : 'off'}`}></span>
+                  <span className="module-icon">📡</span>
+                  <span className="module-title">Motion Detection</span>
+                  <span className={`module-dot ${activeRiskData.motion_detection?.active ? 'on' : 'off'}`}></span>
                 </div>
                 <div className="module-body">
                   <div className="module-metric">
-                    <span>Engine</span>
-                    <strong>{riskData.child_presence?.engine_on ? 'ON' : 'OFF'}</strong>
+                    <span>Motion Engine</span>
+                    <strong>{activeRiskData.motion_detection?.engine_on ? 'ON' : 'OFF'}</strong>
                   </div>
                   <div className="module-metric">
-                    <span>Motion</span>
-                    <strong className={riskData.child_presence?.motion ? 'alert' : ''}>
-                      {riskData.child_presence?.motion ? '⚠ YES' : '✓ No'}
+                    <span>Motion Detected</span>
+                    <strong className={activeRiskData.motion_detection?.motion ? 'alert' : ''}>
+                      {activeRiskData.motion_detection?.motion ? '⚠ YES' : '✓ No'}
                     </strong>
                   </div>
                   <div className="module-metric">
-                    <span>Alert</span>
-                    <strong className={riskData.child_presence?.alert ? 'alert' : ''}>
-                      {riskData.child_presence?.alert ? '⚠ ACTIVE' : '✓ Clear'}
+                    <span>Motion Alert</span>
+                    <strong className={activeRiskData.motion_detection?.alert ? 'alert' : ''}>
+                      {activeRiskData.motion_detection?.alert ? '⚠ ACTIVE' : '✓ Clear'}
                     </strong>
                   </div>
                   <div className="module-metric">
-                    <span>Risk</span>
-                    <strong>{riskData.child_presence?.risk_score ?? 0}%</strong>
+                    <span>Motion Risk</span>
+                    <strong>{activeRiskData.motion_detection?.risk_score ?? 0}%</strong>
                   </div>
                 </div>
               </div>
@@ -324,7 +451,7 @@ export default function LiveRisk() {
               <div className="risk-info-card">
                 <div className="info-icon">🧠</div>
                 <div className="info-title">Active Modules</div>
-                <div className="info-value">{riskData.active_modules ?? 0} / 5</div>
+                <div className="info-value">{activeRiskData.active_modules ?? 0} / 7</div>
               </div>
               <div className="risk-info-card">
                 <div className="info-icon">⚡</div>

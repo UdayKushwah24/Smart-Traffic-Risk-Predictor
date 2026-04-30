@@ -467,3 +467,73 @@
   color: #ff4466;
   text-shadow: 0 0 8px rgba(255, 68, 102, 0.4);
 }
+
+.risk-module-card.kid-safe {
+  box-shadow: 0 0 0 1px rgba(0, 255, 136, 0.08), 0 0 22px rgba(0, 255, 136, 0.06);
+}
+
+.risk-module-card.kid-normal {
+  box-shadow: 0 0 0 1px rgba(0, 255, 136, 0.06), 0 0 18px rgba(0, 255, 136, 0.04);
+}
+
+.risk-module-card.kid-warning {
+  box-shadow: 0 0 0 1px rgba(255, 196, 0, 0.08), 0 0 22px rgba(255, 196, 0, 0.08);
+}
+
+.risk-module-card.kid-danger {
+  animation: kidDangerPulse 1s ease-in-out infinite;
+  box-shadow: 0 0 0 1px rgba(255, 68, 102, 0.18), 0 0 28px rgba(255, 68, 102, 0.16);
+}
+
+.risk-module-card.kid-no-face {
+  box-shadow: 0 0 0 1px rgba(140, 140, 140, 0.08), 0 0 18px rgba(140, 140, 140, 0.05);
+}
+
+.kid-safety-message {
+  font-weight: 600;
+}
+
+.kid-safety-message.safe {
+  color: #00ff88;
+}
+
+.kid-safety-message.normal {
+  color: #00ff88;
+}
+
+.kid-safety-message.warning {
+  color: #ffb300;
+}
+
+.kid-safety-message.danger {
+  color: #ff4466;
+}
+
+.kid-safety-message.no-face {
+  color: var(--text-muted);
+}
+
+.kid-debug-boxes {
+  display: grid;
+  gap: 4px;
+  padding-top: 2px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.kid-debug-boxes span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes kidDangerPulse {
+  0%, 100% {
+    transform: translateY(0);
+    box-shadow: 0 0 0 1px rgba(255, 68, 102, 0.18), 0 0 28px rgba(255, 68, 102, 0.12);
+  }
+  50% {
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 1px rgba(255, 68, 102, 0.32), 0 0 34px rgba(255, 68, 102, 0.24);
+  }
+}

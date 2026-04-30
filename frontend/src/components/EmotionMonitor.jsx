@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+const API_URL = import.meta.env.VITE_API_URL;
 import EmotionIndicator from './EmotionIndicator';
 import EmotionStats from './EmotionStats';
 import '../styles/emotion.css';
@@ -74,6 +75,12 @@ export default function EmotionMonitor({ summary }) {
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play?.().catch(() => {
+              setStatus('Camera connected, but playback could not start automatically.');
+            });
+          };
+          await videoRef.current.play().catch(() => undefined);
         }
         setCameraReady(true);
         setStatus('Monitoring driver emotion in real time.');
@@ -101,7 +108,7 @@ export default function EmotionMonitor({ summary }) {
       if (requestLockRef.current || !videoRef.current || !canvasRef.current) {
         return;
       }
-      if (videoRef.current.readyState < 2) {
+      if (videoRef.current.readyState < 2 || !videoRef.current.videoWidth || !videoRef.current.videoHeight) {
         return;
       }
 
@@ -121,7 +128,7 @@ export default function EmotionMonitor({ summary }) {
         const formData = new FormData();
         formData.append('file', blob, 'emotion-frame.jpg');
 
-        const response = await fetch('/api/emotion-detection/predict', {
+        const response = await fetch(`${API_URL}/api/emotion-detection/predict`, {
           method: 'POST',
           body: formData,
         });

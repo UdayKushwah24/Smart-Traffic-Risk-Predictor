@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+const API_URL = import.meta.env.VITE_API_URL;
 import '../styles/alerthistory.css';
 
 export default function AlertHistory() {
@@ -9,7 +10,7 @@ export default function AlertHistory() {
     const loadAlerts = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        const resp = await fetch('/api/alerts', {
+        const resp = await fetch(`${API_URL}/api/alerts`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (resp.status === 401) {

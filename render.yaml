@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: smart-ai-backend
+    env: python
+    region: oregon
+    plan: starter
+    repo: https://github.com/<your-org-or-user>/Smart-AI-Based-Driver-Safety-Accident-Risk-Prediction.git
+    branch: main
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGO_URI
+        value: ${MONGO_URI}
+      - key: JWT_SECRET_KEY
+        value: ${JWT_SECRET_KEY}
+      - key: AUDIO_ALERT_DROWSY_PATH
+        value: /home/render/project/backend/static/alert.wav
+      - key: AUDIO_ALERT_YAWN_PATH
+        value: /home/render/project/backend/static/alert2.wav
+      - key: FOG_MODEL_PATH
+        value: /home/render/project/backend/models/fog_model.pth
+    healthCheckPath: /api/status
+    autoDeploy: true
+    disk: 10Gi

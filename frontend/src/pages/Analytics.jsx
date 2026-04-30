@@ -54,7 +54,8 @@ export default function Analytics() {
     const load = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        const resp = await fetch('/api/analytics/summary', {
+        const API_URL = import.meta.env.VITE_API_URL;
+        const resp = await fetch(`${API_URL}/api/analytics/summary`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (resp.status === 401) {
@@ -90,7 +91,7 @@ export default function Analytics() {
     { title: 'Fog Predictions', value: `${summary.fog_alerts}` },
     { title: 'Stress Alerts', value: `${summary.stress_alerts}` },
     { title: 'Visibility Alerts', value: `${summary.visibility_alerts}` },
-    { title: 'Child Presence Alerts', value: `${summary.child_presence_alerts}` },
+    { title: 'Motion Alerts', value: `${summary.child_presence_alerts}` },
     { title: 'Drowsiness Events', value: `${summary.drowsiness_today}` },
     { title: 'Emotion Events', value: `${summary.emotion_events}` },
     { title: 'Latest Emotion', value: `${summary.latest_emotion}` },

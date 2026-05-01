@@ -15,14 +15,14 @@ import numpy as np
 from fastapi import APIRouter, UploadFile, File, Response, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from backend.config import PROCESS_FRAME_RATE_LIMIT_PER_SEC, PROCESS_FRAME_REQUIRE_AUTH
-from backend.database.mongo import get_alerts, get_drowsiness_events
-from backend.services.auth_service import get_current_user
-from backend.services import drowsiness_service, fog_service, stress_service, visibility_service, kid_safety_service
-from backend.services import accident_service
-from backend.services.analytics_service import generate_summary
-from backend.services.risk_engine import compute_unified_risk
-from backend.utils.logger import get_logger
+from config import PROCESS_FRAME_RATE_LIMIT_PER_SEC, PROCESS_FRAME_REQUIRE_AUTH
+from database.mongo import get_alerts, get_drowsiness_events
+from services.auth_service import get_current_user
+from services import drowsiness_service, fog_service, stress_service, visibility_service, kid_safety_service
+from services import accident_service
+from services.analytics_service import generate_summary
+from services.risk_engine import compute_unified_risk
+from utils.logger import get_logger
 
 logger = get_logger("routes.api")
 router = APIRouter(prefix="/api")

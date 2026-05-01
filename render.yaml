@@ -20,6 +20,8 @@ services:
         value: /home/render/project/backend/static/alert2.wav
       - key: FOG_MODEL_PATH
         value: /home/render/project/backend/models/fog_model.pth
+      - key: WEB_CONCURRENCY
+        value: "1"
     healthCheckPath: /api/status
     autoDeploy: true
     disk: 10Gi

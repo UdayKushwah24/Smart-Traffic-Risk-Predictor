@@ -15,6 +15,7 @@ The model weights file (fog_model.pth) is stored in backend/models/.
 from typing import Optional
 import io
 import time
+import os
 
 try:
     from PIL import Image, ImageStat, ImageFilter
@@ -61,6 +62,15 @@ def load_model():
         _model = None
         return
 
+    # Ensure model file exists before attempting to load
+    try:
+        if not os.path.exists(FOG_MODEL_PATH):
+            logger.error("Fog model file not found at %s", FOG_MODEL_PATH)
+            _model = None
+            return
+    except Exception:
+        # If path check fails for any reason, continue and let loader handle errors
+        pass
     try:
         _model = timm.create_model(
             "efficientnet_b0", pretrained=False, num_classes=FOG_MODEL_CLASSES

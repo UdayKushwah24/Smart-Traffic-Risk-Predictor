@@ -1,9 +1,10 @@
 """Compatibility entrypoint that exposes the unified FastAPI app."""
 
+import os
+import uvicorn
 from app.main import app
 
+port = int(os.environ.get("PORT", 10000))
 
 if __name__ == "__main__":
-	import uvicorn
-
-	uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=False)
+	uvicorn.run("app.main:app", host="0.0.0.0", port=port)

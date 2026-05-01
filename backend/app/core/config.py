@@ -38,6 +38,8 @@ class Settings(BaseSettings):
 	jwt_exp_minutes: int = 480
 	rate_limit_requests: int = 120
 	rate_limit_window_seconds: int = 60
+	process_frame_rate_limit_per_sec: int = 5
+	process_frame_require_auth: bool = False
 	otp_expiry_minutes: int = 5
 	smtp_host: str = ""
 	smtp_port: int = 587
@@ -129,6 +131,8 @@ JWT_ALGORITHM = settings.jwt_algorithm
 JWT_EXP_MINUTES = settings.jwt_exp_minutes
 RATE_LIMIT_REQUESTS = settings.rate_limit_requests
 RATE_LIMIT_WINDOW_SECONDS = settings.rate_limit_window_seconds
+PROCESS_FRAME_RATE_LIMIT_PER_SEC = max(1, settings.process_frame_rate_limit_per_sec)
+PROCESS_FRAME_REQUIRE_AUTH = settings.process_frame_require_auth
 OTP_EXPIRY_MINUTES = settings.otp_expiry_minutes
 SMTP_HOST = settings.smtp_host
 SMTP_PORT = settings.smtp_port

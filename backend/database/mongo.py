@@ -1,6 +1,8 @@
 """MongoDB integration and collection helpers."""
 
 from datetime import datetime, timezone
+import threading
+import time
 from typing import Any, Optional
 
 try:
@@ -25,6 +27,9 @@ logger = get_logger("database.mongo")
 
 _client: Optional[MongoClient] = None
 _db: Optional[Database] = None
+_mongo_lock = threading.Lock()
+_last_ping_ts = 0.0
+_PING_INTERVAL_SECONDS = 30.0
 
 
 def _to_utc_now() -> datetime:
@@ -55,7 +60,30 @@ def init_mongo() -> Optional[Database]:
 
 
 def get_db() -> Optional[Database]:
-    return _db if _db is not None else init_mongo()
+    global _client, _db, _last_ping_ts
+
+    with _mongo_lock:
+        if _db is None or _client is None:
+            return init_mongo()
+
+        now = time.monotonic()
+        if now - _last_ping_ts < _PING_INTERVAL_SECONDS:
+            return _db
+
+        try:
+            _client.admin.command("ping")
+            _last_ping_ts = now
+            return _db
+        except Exception as exc:
+            logger.warning(f"MongoDB ping failed; reconnecting: {exc}")
+            try:
+                _client.close()
+            except Exception:
+                pass
+            _client = None
+            _db = None
+            _last_ping_ts = 0.0
+            return init_mongo()
 
 
 def _ensure_indexes(db: Database) -> None:

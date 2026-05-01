@@ -3,13 +3,16 @@ import KidSafetyCard from '../components/KidSafetyCard';
 import '../styles/liverisk.css';
 
 /* ── Build backend API and WS URL from Vite env `VITE_API_URL`. Falls back to origin. ── */
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '');
 const WS_URL = `${API_URL.replace(/^http/, 'ws')}/ws/risk`;
-const FRAME_CAPTURE_INTERVAL_MS = 350;
+const FRAME_CAPTURE_INTERVAL_MS = 500;
 
 export default function LiveRisk() {
-  const [isActive, setIsActive] = useState(false);
+  const [isActive, setIsActive] = useState(true);
   const [riskData, setRiskData] = useState(null);
+  const [cameraError, setCameraError] = useState('');
+  const [apiReconnecting, setApiReconnecting] = useState(false);
+  const [isFrameLoading, setIsFrameLoading] = useState(false);
   const fallbackRiskData = {
     overall_score: 0,
     risk_level: 'low',
@@ -39,6 +42,7 @@ export default function LiveRisk() {
   const mediaStreamRef = useRef(null);
   const frameCaptureTimerRef = useRef(null);
   const frameUploadInFlightRef = useRef(false);
+  const loadingTimerRef = useRef(null);
   const audioContextRef = useRef(null);
   const dangerPlayedRef = useRef(false);
 
@@ -86,6 +90,11 @@ export default function LiveRisk() {
   useEffect(() => {
     const stopStreaming = () => {
       frameUploadInFlightRef.current = false;
+      if (loadingTimerRef.current) {
+        clearTimeout(loadingTimerRef.current);
+        loadingTimerRef.current = null;
+      }
+      setIsFrameLoading(false);
       if (frameCaptureTimerRef.current) {
         clearInterval(frameCaptureTimerRef.current);
         frameCaptureTimerRef.current = null;
@@ -113,6 +122,11 @@ export default function LiveRisk() {
       if (video.readyState < 2) return;
 
       frameUploadInFlightRef.current = true;
+      if (!loadingTimerRef.current) {
+        loadingTimerRef.current = setTimeout(() => {
+          if (!cancelled) setIsFrameLoading(true);
+        }, 220);
+      }
       try {
         const targetWidth = 640;
         const sourceWidth = video.videoWidth || targetWidth;
@@ -135,10 +149,18 @@ export default function LiveRisk() {
         const data = await resp.json();
         if (!cancelled && resp.ok && !data.error) {
           setRiskData(data);
+          setApiReconnecting(false);
+        } else if (!cancelled) {
+          setApiReconnecting(true);
         }
       } catch {
-        // Keep existing data and connection state to avoid UI flicker.
+        if (!cancelled) setApiReconnecting(true);
       } finally {
+        if (loadingTimerRef.current) {
+          clearTimeout(loadingTimerRef.current);
+          loadingTimerRef.current = null;
+        }
+        setIsFrameLoading(false);
         frameUploadInFlightRef.current = false;
       }
     };
@@ -160,6 +182,7 @@ export default function LiveRisk() {
         }
 
         mediaStreamRef.current = stream;
+        setCameraError('');
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => {});
@@ -167,6 +190,7 @@ export default function LiveRisk() {
 
         frameCaptureTimerRef.current = setInterval(sendCurrentFrame, FRAME_CAPTURE_INTERVAL_MS);
       } catch {
+        setCameraError('Camera not available');
         setIsActive(false);
       }
     };
@@ -364,7 +388,23 @@ export default function LiveRisk() {
               playsInline
               style={{ width: '100%', borderRadius: '12px', marginTop: '10px', background: '#111' }}
             />
+            {isFrameLoading && (
+              <div className="risk-inline-status">
+                <span className="risk-spinner" aria-hidden="true"></span>
+                <span>Processing frame...</span>
+              </div>
+            )}
+            {apiReconnecting && (
+              <div className="risk-inline-status warning">Reconnecting...</div>
+            )}
             <canvas ref={canvasRef} style={{ display: 'none' }} />
+          </div>
+        )}
+
+        {cameraError && (
+          <div className="risk-status-panel inactive" style={{ maxWidth: '760px' }}>
+            <div className="risk-status-label">Camera Status</div>
+            <div className="risk-status-value inactive">{cameraError}</div>
           </div>
         )}
 

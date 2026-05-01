@@ -81,6 +81,11 @@ def health_check() -> dict:
 	return {"status": "ok", "service": "driver-safety-api"}
 
 
+@app.get("/api/status")
+def status():
+	return {"status": "ok"}
+
+
 app.include_router(drowsiness_router)
 app.include_router(stress_router)
 app.include_router(kid_safety_router)

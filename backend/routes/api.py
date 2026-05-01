@@ -3,16 +3,19 @@ API Routes — REST endpoints for the unified system.
 """
 
 import base64
+from collections import deque
 import io
+import threading
 import time
 
 _start_time = time.time()
 
 import cv2
 import numpy as np
-from fastapi import APIRouter, UploadFile, File, Response, Depends
+from fastapi import APIRouter, UploadFile, File, Response, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from backend.config import PROCESS_FRAME_RATE_LIMIT_PER_SEC, PROCESS_FRAME_REQUIRE_AUTH
 from backend.database.mongo import get_alerts, get_drowsiness_events
 from backend.services.auth_service import get_current_user
 from backend.services import drowsiness_service, fog_service, stress_service, visibility_service, kid_safety_service
@@ -23,6 +26,30 @@ from backend.utils.logger import get_logger
 
 logger = get_logger("routes.api")
 router = APIRouter(prefix="/api")
+_process_frame_hits: dict[str, deque[float]] = {}
+_process_frame_lock = threading.Lock()
+
+
+def _get_client_key(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "").strip()
+    if forwarded_for:
+        return forwarded_for.split(",", 1)[0].strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def _is_process_frame_rate_limited(client_key: str) -> bool:
+    now = time.monotonic()
+    window_start = now - 1.0
+    with _process_frame_lock:
+        history = _process_frame_hits.setdefault(client_key, deque())
+        while history and history[0] < window_start:
+            history.popleft()
+        if len(history) >= PROCESS_FRAME_RATE_LIMIT_PER_SEC:
+            return True
+        history.append(now)
+        return False
 
 
 @router.get("/status")
@@ -276,26 +303,40 @@ class FrameInput(BaseModel):
 
 
 @router.post("/process-frame")
-async def process_frame(payload: FrameInput):
+async def process_frame(payload: FrameInput, request: Request):
     """Accept a frontend webcam frame (base64), update module states, and return unified risk."""
     try:
-        image_data = payload.image or ""
+        if PROCESS_FRAME_REQUIRE_AUTH and not request.headers.get("authorization"):
+            raise HTTPException(status_code=401, detail="Authorization header required")
+
+        client_key = _get_client_key(request)
+        if _is_process_frame_rate_limited(client_key):
+            raise HTTPException(status_code=429, detail="Rate limit exceeded for process-frame")
+
+        image_data = (payload.image or "").strip()
         if not image_data:
-            return {"error": "Image payload is empty"}
+            raise HTTPException(status_code=400, detail="Image payload is empty")
 
         if "," in image_data:
             image_data = image_data.split(",", 1)[1]
 
-        raw = base64.b64decode(image_data, validate=True)
+        try:
+            raw = base64.b64decode(image_data, validate=True)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail="Invalid base64 image payload") from exc
+
+        if not raw:
+            raise HTTPException(status_code=400, detail="Decoded image payload is empty")
+
         arr = np.frombuffer(raw, dtype=np.uint8)
         frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
         if frame is None:
-            return {"error": "Invalid image payload"}
+            raise HTTPException(status_code=422, detail="Invalid image payload")
 
         frame = cv2.resize(frame, (640, 480))
         ok, encoded = cv2.imencode(".jpg", frame)
         if not ok:
-            return {"error": "Frame encoding failed"}
+            raise HTTPException(status_code=500, detail="Frame encoding failed")
 
         frame_bytes = encoded.tobytes()
         drowsiness_service.ingest_external_frame(frame, jpeg_bytes=frame_bytes)
@@ -312,6 +353,8 @@ async def process_frame(payload: FrameInput):
         risk = compute_unified_risk(d_state, f_state, s_state, v_state, k_state)
         risk["timestamp"] = time.time()
         return risk
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Process frame error: {e}")
         return {"error": str(e)}

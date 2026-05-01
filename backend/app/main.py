@@ -28,13 +28,14 @@ logger = get_logger("app")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 	init_mongo()
+	# Defer heavy model loading to on-demand to reduce startup memory usage in constrained environments.
+	# Services expose their own lazy-loading; avoid loading large models at app startup.
 	if not TEST_MODE:
-		load_fog_model()
-		load_kid_model()
+		logger.info("Deferred heavy model startup; models will load on first use.")
 		if ENABLE_DROWSINESS_SERVICE:
-			start_drowsiness_service()
+			logger.info("Drowsiness service is enabled but will start lazily when required.")
 		else:
-			logger.warning("Drowsiness detection startup skipped: %s", DROWSINESS_SERVICE_DISABLED_REASON)
+			logger.warning("Drowsiness detection startup disabled: %s", DROWSINESS_SERVICE_DISABLED_REASON)
 	else:
 		logger.info("TEST_MODE enabled: heavy model startup skipped")
 

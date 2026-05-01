@@ -11,6 +11,15 @@ router = APIRouter(tags=["kid-safety"])
 @router.get("/kid-safety")
 def read_kid_safety_state() -> dict:
 	frame = get_frame()
+	# If service state indicates disabled, return clear disabled response
+	state = get_state()
+	if state is None or state.get("status") == "disabled":
+		return {"status": "disabled", "message": "Kid detection not available on this server"}
+
 	if frame is None:
-		return get_state()
-	return detect_kid(frame, user_id="system", image_name="camera_frame.jpg")
+		return state
+
+	result = detect_kid(frame, user_id="system", image_name="camera_frame.jpg")
+	if result is None or result.get("status") == "disabled":
+		return {"status": "disabled", "message": "Kid detection not available on this server"}
+	return result

@@ -38,6 +38,12 @@ from utils.logger import get_logger
 
 logger = get_logger("drowsiness_service")
 
+# Safe import of MediaPipe - avoid crash when package is not installed on server
+try:
+    import mediapipe as mp
+except Exception:
+    mp = None
+
 _FACE_LANDMARKER_MODEL = MODELS_DIR / "face_landmarker.task"
 _FACE_LANDMARKER_URL = (
     "https://storage.googleapis.com/mediapipe-models/face_landmarker/"
@@ -343,14 +349,17 @@ def _mediapipe_backend_available() -> bool:
 
     _prepare_mediapipe_env()
 
+    # If MediaPipe isn't installed, report unavailable
+    if mp is None:
+        _mediapipe_backend_supported = False
+        return False
+
+    model_path = _ensure_face_landmarker_model()
+    if model_path is None:
+        _mediapipe_backend_supported = False
+        return False
+
     try:
-        import mediapipe as mp
-
-        model_path = _ensure_face_landmarker_model()
-        if model_path is None:
-            _mediapipe_backend_supported = False
-            return False
-
         BaseOptions = mp.tasks.BaseOptions
         FaceLandmarker = mp.tasks.vision.FaceLandmarker
         FaceLandmarkerOptions = mp.tasks.vision.FaceLandmarkerOptions
@@ -712,9 +721,13 @@ def _mediapipe_detection_loop() -> None:
     _prepare_mediapipe_env()
     try:
         import cv2
-        import mediapipe as mp
     except Exception as exc:
-        logger.error("MediaPipe backend unavailable, drowsiness service disabled: %s", exc)
+        logger.error("OpenCV unavailable, drowsiness service disabled: %s", exc)
+        _set_inactive(backend)
+        return
+
+    if mp is None:
+        logger.error("MediaPipe not available, drowsiness service disabled")
         _set_inactive(backend)
         return
 

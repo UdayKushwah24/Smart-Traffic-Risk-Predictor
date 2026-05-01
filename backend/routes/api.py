@@ -2,11 +2,14 @@
 API Routes — REST endpoints for the unified system.
 """
 
+import base64
 import io
 import time
 
 _start_time = time.time()
 
+import cv2
+import numpy as np
 from fastapi import APIRouter, UploadFile, File, Response, Depends
 from pydantic import BaseModel
 
@@ -266,6 +269,52 @@ class AccidentInput(BaseModel):
     Casualty_Sex: str
     Casualty_Age: int
     Vehicle_Type: str
+
+
+class FrameInput(BaseModel):
+    image: str
+
+
+@router.post("/process-frame")
+async def process_frame(payload: FrameInput):
+    """Accept a frontend webcam frame (base64), update module states, and return unified risk."""
+    try:
+        image_data = payload.image or ""
+        if not image_data:
+            return {"error": "Image payload is empty"}
+
+        if "," in image_data:
+            image_data = image_data.split(",", 1)[1]
+
+        raw = base64.b64decode(image_data, validate=True)
+        arr = np.frombuffer(raw, dtype=np.uint8)
+        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if frame is None:
+            return {"error": "Invalid image payload"}
+
+        frame = cv2.resize(frame, (640, 480))
+        ok, encoded = cv2.imencode(".jpg", frame)
+        if not ok:
+            return {"error": "Frame encoding failed"}
+
+        frame_bytes = encoded.tobytes()
+        drowsiness_service.ingest_external_frame(frame, jpeg_bytes=frame_bytes)
+
+        fog_service.predict(frame_bytes, user_id="system", image_name="webcam_frame.jpg")
+        visibility_service.predict(frame_bytes, user_id="system", image_name="webcam_frame.jpg")
+        kid_safety_service.predict(frame_bytes, user_id="system", image_name="webcam_frame.jpg")
+
+        d_state = drowsiness_service.get_state()
+        f_state = fog_service.get_state()
+        s_state = stress_service.estimate_from_context(d_state)
+        v_state = visibility_service.get_state()
+        k_state = kid_safety_service.get_state()
+        risk = compute_unified_risk(d_state, f_state, s_state, v_state, k_state)
+        risk["timestamp"] = time.time()
+        return risk
+    except Exception as e:
+        logger.error(f"Process frame error: {e}")
+        return {"error": str(e)}
 
 
 @router.post("/accident/predict")

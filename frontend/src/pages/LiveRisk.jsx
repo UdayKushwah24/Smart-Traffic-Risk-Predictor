@@ -5,6 +5,7 @@ import '../styles/liverisk.css';
 /* ── Build backend API and WS URL from Vite env `VITE_API_URL`. Falls back to origin. ── */
 const API_URL = import.meta.env.VITE_API_URL;
 const WS_URL = `${API_URL.replace(/^http/, 'ws')}/ws/risk`;
+const FRAME_CAPTURE_INTERVAL_MS = 350;
 
 export default function LiveRisk() {
   const [isActive, setIsActive] = useState(false);
@@ -33,6 +34,11 @@ export default function LiveRisk() {
   const wsRef = useRef(null);
   const keepAliveRef = useRef(null);
   const kidSafetyTimerRef = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const frameCaptureTimerRef = useRef(null);
+  const frameUploadInFlightRef = useRef(false);
   const audioContextRef = useRef(null);
   const dangerPlayedRef = useRef(false);
 
@@ -75,6 +81,102 @@ export default function LiveRisk() {
         wsRef.current = null;
       }
     }
+  }, [isActive]);
+
+  useEffect(() => {
+    const stopStreaming = () => {
+      frameUploadInFlightRef.current = false;
+      if (frameCaptureTimerRef.current) {
+        clearInterval(frameCaptureTimerRef.current);
+        frameCaptureTimerRef.current = null;
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
+
+    if (!isActive) {
+      stopStreaming();
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const sendCurrentFrame = async () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || frameUploadInFlightRef.current) return;
+      if (video.readyState < 2) return;
+
+      frameUploadInFlightRef.current = true;
+      try {
+        const targetWidth = 640;
+        const sourceWidth = video.videoWidth || targetWidth;
+        const sourceHeight = video.videoHeight || 480;
+        const targetHeight = Math.max(1, Math.round((sourceHeight / sourceWidth) * targetWidth));
+
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d', { willReadFrequently: false });
+        if (!ctx) return;
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const image = canvas.toDataURL('image/jpeg', 0.72);
+
+        const resp = await fetch(`${API_URL}/api/process-frame`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image }),
+        });
+        const data = await resp.json();
+        if (!cancelled && resp.ok && !data.error) {
+          setRiskData(data);
+        }
+      } catch {
+        // Keep existing data and connection state to avoid UI flicker.
+      } finally {
+        frameUploadInFlightRef.current = false;
+      }
+    };
+
+    const startStreaming = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        mediaStreamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+
+        frameCaptureTimerRef.current = setInterval(sendCurrentFrame, FRAME_CAPTURE_INTERVAL_MS);
+      } catch {
+        setIsActive(false);
+      }
+    };
+
+    startStreaming();
+
+    return () => {
+      cancelled = true;
+      stopStreaming();
+    };
   }, [isActive]);
 
   useEffect(() => {
@@ -251,6 +353,20 @@ export default function LiveRisk() {
               : '○ INACTIVE'}
           </div>
         </div>
+
+        {isActive && (
+          <div className="risk-status-panel active" style={{ maxWidth: '760px', marginTop: '12px' }}>
+            <div className="risk-status-label">Live Camera Stream</div>
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              style={{ width: '100%', borderRadius: '12px', marginTop: '10px', background: '#111' }}
+            />
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
+          </div>
+        )}
 
         {/* ── Real-Time Risk Score Display ── */}
         {(isActive || !riskData) && (

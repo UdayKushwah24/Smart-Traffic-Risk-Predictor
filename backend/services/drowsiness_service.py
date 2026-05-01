@@ -76,6 +76,9 @@ _state: dict = {
     "timestamp": 0.0,
 }
 _latest_frame_jpeg: Optional[bytes] = None
+_latest_external_frame_bgr: Optional[np.ndarray] = None
+_latest_external_frame_seq = 0
+_last_consumed_external_frame_seq = 0
 _running = False
 _thread: Optional[threading.Thread] = None
 _last_event_log_ts = 0.0
@@ -91,6 +94,16 @@ _BOX_COLORS = {
     "warning": "#ffb300",
     "risk": "#ff3b30",
 }
+
+
+def _should_use_external_frames() -> bool:
+    value = os.getenv("USE_EXTERNAL_FRAMES", "true").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _allow_local_camera_fallback() -> bool:
+    value = os.getenv("ALLOW_LOCAL_CAMERA_FALLBACK", "false").strip().lower()
+    return value in {"1", "true", "yes", "on"}
 
 
 def _clamp(value: float, low: float, high: float) -> float:
@@ -434,6 +447,52 @@ def _store_frame(jpeg_bytes: Optional[bytes]) -> None:
         _latest_frame_jpeg = jpeg_bytes
 
 
+def ingest_external_frame(frame_bgr: np.ndarray, jpeg_bytes: Optional[bytes] = None) -> int:
+    """Store an externally supplied frame for the detection loop.
+
+    Returns a monotonically increasing frame sequence id.
+    """
+    global _latest_external_frame_bgr, _latest_external_frame_seq, _latest_frame_jpeg
+
+    if frame_bgr is None or not isinstance(frame_bgr, np.ndarray):
+        raise ValueError("frame_bgr must be a numpy array")
+
+    frame = frame_bgr.copy()
+    with _lock:
+        _latest_external_frame_bgr = frame
+        _latest_external_frame_seq += 1
+        if jpeg_bytes is not None:
+            _latest_frame_jpeg = jpeg_bytes
+        return _latest_external_frame_seq
+
+
+def _read_external_frame() -> tuple[Optional[np.ndarray], Optional[int]]:
+    global _last_consumed_external_frame_seq
+
+    with _lock:
+        if _latest_external_frame_bgr is None:
+            return None, None
+        if _latest_external_frame_seq <= _last_consumed_external_frame_seq:
+            return None, None
+
+        _last_consumed_external_frame_seq = _latest_external_frame_seq
+        return _latest_external_frame_bgr.copy(), _last_consumed_external_frame_seq
+
+
+def _next_frame(cap, cv2_module) -> Optional[np.ndarray]:
+    frame, _ = _read_external_frame()
+    if frame is not None:
+        return frame
+
+    if cap is None:
+        return None
+
+    ret, local_frame = cap.read()
+    if not ret:
+        return None
+    return local_frame
+
+
 # ── Core EAR calculation ────────────────────────────────────────────
 def eye_aspect_ratio(eye):
     def _euclidean(p1, p2):
@@ -680,12 +739,13 @@ def _mediapipe_detection_loop() -> None:
         output_facial_transformation_matrixes=False,
     )
     face_landmarker = FaceLandmarker.create_from_options(options)
-    cap = _open_camera(cv2)
-
-    if cap is None:
-        face_landmarker.close()
-        _set_inactive(backend)
-        return
+    cap = None
+    if _allow_local_camera_fallback():
+        cap = _open_camera(cv2)
+        if cap is None and not _should_use_external_frames():
+            face_landmarker.close()
+            _set_inactive(backend)
+            return
 
     counter = 0
     prev_drowsy = False
@@ -730,8 +790,8 @@ def _mediapipe_detection_loop() -> None:
 
     try:
         while _running:
-            ret, frame = cap.read()
-            if not ret:
+            frame = _next_frame(cap, cv2)
+            if frame is None:
                 time.sleep(0.1)
                 continue
 
@@ -906,7 +966,8 @@ def _mediapipe_detection_loop() -> None:
     except Exception as exc:
         logger.error("Detection loop error: %s", exc)
     finally:
-        cap.release()
+        if cap is not None:
+            cap.release()
         face_landmarker.close()
         stop_alert("drowsiness")
         stop_alert("yawning")
@@ -937,10 +998,12 @@ def _opencv_detection_loop() -> None:
         _set_inactive(backend)
         return
 
-    cap = _open_camera(cv2)
-    if cap is None:
-        _set_inactive(backend)
-        return
+    cap = None
+    if _allow_local_camera_fallback():
+        cap = _open_camera(cv2)
+        if cap is None and not _should_use_external_frames():
+            _set_inactive(backend)
+            return
 
     counter = 0
     prev_drowsy = False
@@ -981,8 +1044,8 @@ def _opencv_detection_loop() -> None:
 
     try:
         while _running:
-            ret, frame = cap.read()
-            if not ret:
+            frame = _next_frame(cap, cv2)
+            if frame is None:
                 time.sleep(0.1)
                 continue
 
@@ -1136,7 +1199,8 @@ def _opencv_detection_loop() -> None:
     except Exception as exc:
         logger.error("OpenCV fallback loop error: %s", exc)
     finally:
-        cap.release()
+        if cap is not None:
+            cap.release()
         stop_alert("drowsiness")
         stop_alert("yawning")
         _set_inactive(backend)
